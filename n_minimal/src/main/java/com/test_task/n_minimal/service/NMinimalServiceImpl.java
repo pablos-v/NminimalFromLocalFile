@@ -14,16 +14,27 @@ import java.util.List;
 @Service
 public class NMinimalServiceImpl implements NMinimalService {
 
+    private final Validator validator;
+    private final XlsxToListConverter converter;
+    private final Sorter sorter;
+
+    public NMinimalServiceImpl(Validator validator, XlsxToListConverter converter, Sorter sorter) {
+        this.validator = validator;
+        this.converter = converter;
+        this.sorter = sorter;
+    }
+
     @Override
     public Long getNthMinimal(String fileLink, String N) throws LinkNotFoundException, LinkProcessingException,
             ValueNNotFoundException, ValueNProcessingException {
 
-        Validator.validateInput(fileLink, N);
-        List<Long> unsorted = XlsxToListConverter.convert(fileLink);
+        validator.validateInput(fileLink, N);
+        List<Long> unsorted = converter.convert(fileLink);
 
-        Validator.validateNWithListSize(unsorted);
-        List<Long> sorted = Sorter.sort(unsorted);
+        int valueN = Integer.parseInt(N);
+        validator.validateNWithListSize(unsorted, valueN);
+        List<Long> sorted = sorter.sort(unsorted);
 
-        return sorted.get(Validator.VALUE_N-1);
+        return sorted.get(valueN-1);
     }
 }

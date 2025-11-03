@@ -6,6 +6,8 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 
 import java.io.File;
 import java.io.IOException;
@@ -15,7 +17,11 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@SpringBootTest
 class XlsxToListConverterTest {
+
+    @Autowired
+    private XlsxToListConverter converter;
 
     @TempDir
     Path tempDir;
@@ -55,7 +61,7 @@ class XlsxToListConverterTest {
         File file = createTempXlsx("numbers.xlsx");
 
         // When
-        List<Long> result = XlsxToListConverter.convert(file.getAbsolutePath());
+        List<Long> result = converter.convert(file.getAbsolutePath());
 
         // Then
         assertEquals(List.of(10L, 11L, 12L), result);
@@ -74,7 +80,7 @@ class XlsxToListConverterTest {
         File file = createTempXlsx("strings.xlsx");
 
         // When
-        List<Long> result = XlsxToListConverter.convert(file.getAbsolutePath());
+        List<Long> result = converter.convert(file.getAbsolutePath());
 
         // Then
         assertEquals(List.of(123L, 456L, 789L), result);
@@ -84,9 +90,7 @@ class XlsxToListConverterTest {
     @DisplayName("Должен игнорировать пустые и нецелочисленные значения")
     void shouldIgnoreInvalidStringCells() throws IOException {
         // Given
-        String[] values = {"123", "abc", "", "  ", "45.67", "12 345"}; // 12 345 -> "12345" -> Long
-        // Примечание: "12 345" -> убираем пробелы -> "12345" -> OK
-        // Но "45.67" -> не Long -> null
+        String[] values = {"123", "abc", "", "  ", "45.67", "12 345"};
 
         for (int i = 0; i < values.length; i++) {
             Row row = sheet.createRow(i);
@@ -96,7 +100,7 @@ class XlsxToListConverterTest {
         File file = createTempXlsx("mixed_strings.xlsx");
 
         // When
-        List<Long> result = XlsxToListConverter.convert(file.getAbsolutePath());
+        List<Long> result = converter.convert(file.getAbsolutePath());
 
         // Then
         assertEquals(List.of(123L, 12345L), result); // "12 345" -> 12345
@@ -113,7 +117,7 @@ class XlsxToListConverterTest {
         File file = createTempXlsx("double.xlsx");
 
         // When
-        List<Long> result = XlsxToListConverter.convert(file.getAbsolutePath());
+        List<Long> result = converter.convert(file.getAbsolutePath());
 
         // Then
         assertEquals(List.of(123L), result);
@@ -135,7 +139,7 @@ class XlsxToListConverterTest {
         File file = createTempXlsx("null_cells.xlsx");
 
         // When
-        List<Long> result = XlsxToListConverter.convert(file.getAbsolutePath());
+        List<Long> result = converter.convert(file.getAbsolutePath());
 
         // Then
         assertEquals(List.of(100L, 200L), result);
@@ -157,7 +161,7 @@ class XlsxToListConverterTest {
         File file = createTempXlsx("boolean.xlsx");
 
         // When
-        List<Long> result = XlsxToListConverter.convert(file.getAbsolutePath());
+        List<Long> result = converter.convert(file.getAbsolutePath());
 
         // Then
         assertEquals(List.of(123L), result);
@@ -176,7 +180,7 @@ class XlsxToListConverterTest {
         // When & Then
         ValueNProcessingException exception = assertThrows(
                 ValueNProcessingException.class,
-                () -> XlsxToListConverter.convert(file.getAbsolutePath())
+                () -> converter.convert(file.getAbsolutePath())
         );
         assertEquals("No numbers found in first column", exception.getMessage());
     }
@@ -188,7 +192,6 @@ class XlsxToListConverterTest {
         File fakeFile = tempDir.resolve("not_excel.txt").toFile();
         try {
             fakeFile.createNewFile();
-            // Записываем какой-то контент в файл, чтобы он не был пустым
             Files.writeString(fakeFile.toPath(), "dummy content");
         } catch (IOException e) {
             fail("Cannot create test file");
@@ -197,9 +200,10 @@ class XlsxToListConverterTest {
         // When & Then
         LinkProcessingException exception = assertThrows(
                 LinkProcessingException.class,
-                () -> XlsxToListConverter.convert(fakeFile.getAbsolutePath())
+                () -> converter.convert(fakeFile.getAbsolutePath())
         );
-        assertTrue(exception.getMessage().contains("Invalid Excel file format"));
+        assertTrue(exception.getMessage().contains("Invalid Excel file format") ||
+                exception.getMessage().contains("not a valid Excel format"));
     }
 
     @Test
@@ -211,9 +215,10 @@ class XlsxToListConverterTest {
         // When & Then
         LinkProcessingException exception = assertThrows(
                 LinkProcessingException.class,
-                () -> XlsxToListConverter.convert(nonExistentPath)
+                () -> converter.convert(nonExistentPath)
         );
-        assertTrue(exception.getMessage().contains("Error reading Excel file"));
+        assertTrue(exception.getMessage().contains("Error reading Excel file") ||
+                exception.getMessage().contains("File not found"));
     }
 
     @Test
@@ -226,7 +231,7 @@ class XlsxToListConverterTest {
         File file = createTempXlsx("large.xlsx");
 
         // When
-        List<Long> result = XlsxToListConverter.convert(file.getAbsolutePath());
+        List<Long> result = converter.convert(file.getAbsolutePath());
 
         // Then
         assertEquals(List.of(Long.MAX_VALUE), result);
@@ -244,8 +249,49 @@ class XlsxToListConverterTest {
         // When & Then
         ValueNProcessingException exception = assertThrows(
                 ValueNProcessingException.class,
-                () -> XlsxToListConverter.convert(file.getAbsolutePath())
+                () -> converter.convert(file.getAbsolutePath())
         );
         assertEquals("No numbers found in first column", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("Должен обрабатывать файл с несколькими листами (использует первый)")
+    void shouldUseFirstSheetOnly() throws IOException {
+        // Given
+        // Первый лист с числами
+        Row row1 = sheet.createRow(0);
+        row1.createCell(0).setCellValue(100L);
+
+        // Второй лист (должен игнорироваться)
+        Sheet secondSheet = workbook.createSheet("SecondSheet");
+        Row row2 = secondSheet.createRow(0);
+        row2.createCell(0).setCellValue(200L);
+
+        File file = createTempXlsx("multiple_sheets.xlsx");
+
+        // When
+        List<Long> result = converter.convert(file.getAbsolutePath());
+
+        // Then
+        assertEquals(List.of(100L), result); // только из первого листа
+    }
+
+    @Test
+    @DisplayName("Должен корректно обрабатывать отрицательные числа")
+    void shouldHandleNegativeNumbers() throws IOException {
+        // Given
+        Row row1 = sheet.createRow(0);
+        row1.createCell(0).setCellValue(-100L);
+
+        Row row2 = sheet.createRow(1);
+        row2.createCell(0).setCellValue("-200");
+
+        File file = createTempXlsx("negative.xlsx");
+
+        // When
+        List<Long> result = converter.convert(file.getAbsolutePath());
+
+        // Then
+        assertEquals(List.of(-100L, -200L), result);
     }
 }

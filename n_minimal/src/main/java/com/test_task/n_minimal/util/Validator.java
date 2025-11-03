@@ -1,6 +1,7 @@
 package com.test_task.n_minimal.util;
 
 import com.test_task.n_minimal.exception.*;
+import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.util.List;
@@ -8,9 +9,8 @@ import java.util.List;
 /**
  * Класс валидации входных данных
  */
+@Component
 public class Validator {
-
-    public static int VALUE_N;
 
     // Статические константы для сообщений об ошибках
     private static final String INVALID_CHARS = "Invalid characters in file path";
@@ -22,7 +22,7 @@ public class Validator {
     private static final String N_EXCEEDS_NUMBERS_COUNT = "N exceeds the number of values in first column";
 
 
-    public static void validateInput(String link, String N) {
+    public void validateInput(String link, String N) {
         // 1. Проверка что link не null
         if (link == null) {
             throw new LinkNotFoundException("File link cannot be null");
@@ -55,21 +55,22 @@ public class Validator {
         }
 
         // 6. Проверка что N является integer
+        int valueN;
         try {
-            VALUE_N = Integer.parseInt(N);
+            valueN = Integer.parseInt(N);
         } catch (NumberFormatException e) {
             throw new ValueNProcessingException(N_NOT_INTEGER);
         }
 
         // 7. Проверка что N больше 0
-        if (VALUE_N < 1) {
+        if (valueN < 1) {
             throw new ValueNProcessingException(N_BELOW_ZERO);
         }
     }
 
     // Проверка что количество цифр в 1 столбце >= N
-    public static void validateNWithListSize(List<Long> numbers) {
-        if (numbers.size() < VALUE_N) {
+    public void validateNWithListSize(List<Long> numbers, int N) {
+        if (numbers.size() < N) {
             throw new ValueNProcessingException(N_EXCEEDS_NUMBERS_COUNT);
         }
     }

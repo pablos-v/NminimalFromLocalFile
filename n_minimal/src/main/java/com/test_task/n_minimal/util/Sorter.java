@@ -1,13 +1,16 @@
 package com.test_task.n_minimal.util;
 
+import org.springframework.stereotype.Component;
+
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+@Component
 public class Sorter {
 
-    public static List<Long> sort(List<Long> unsorted) {
+    public List<Long> sort(List<Long> unsorted) {
         List<Long> list = new ArrayList<>(unsorted);
         quickSort(list, 0, list.size() - 1);
 

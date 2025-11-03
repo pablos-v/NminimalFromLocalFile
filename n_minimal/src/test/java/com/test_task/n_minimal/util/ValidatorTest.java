@@ -2,9 +2,13 @@ package com.test_task.n_minimal.util;
 
 import com.test_task.n_minimal.exception.*;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,7 +17,12 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@SpringBootTest
+@ExtendWith(MockitoExtension.class)
 class ValidatorTest {
+
+    @Autowired
+    private Validator validator;
 
     @TempDir
     Path tempDir;
@@ -22,7 +31,7 @@ class ValidatorTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        // Создаём временный .xlsx файл (даже пустой — нам не нужно читать содержимое)
+        // Создаём временный .xlsx файл
         validFile = tempDir.resolve("test.xlsx").toFile();
         assertTrue(validFile.createNewFile(), "Не удалось создать временный файл");
     }
@@ -35,7 +44,7 @@ class ValidatorTest {
         // When & Then
         LinkNotFoundException exception = assertThrows(
                 LinkNotFoundException.class,
-                () -> Validator.validateInput(null, "1")
+                () -> validator.validateInput(null, "1")
         );
         assertEquals("File link cannot be null", exception.getMessage());
     }
@@ -46,7 +55,7 @@ class ValidatorTest {
         // When & Then
         ValueNNotFoundException exception = assertThrows(
                 ValueNNotFoundException.class,
-                () -> Validator.validateInput(validFile.getAbsolutePath(), null)
+                () -> validator.validateInput(validFile.getAbsolutePath(), null)
         );
         assertEquals("N value cannot be null", exception.getMessage());
     }
@@ -55,9 +64,10 @@ class ValidatorTest {
     @DisplayName("Должен выбрасывать LinkProcessingException при наличии запрещённых символов")
     void shouldThrowLinkProcessingExceptionOnInvalidChars() {
         for (String ch : List.of("<", ">", "\"", "|", "?", "*")) {
-
-            LinkProcessingException exception = assertThrows(LinkProcessingException.class,
-                    () -> Validator.validateInput(ch, "1"));
+            LinkProcessingException exception = assertThrows(
+                    LinkProcessingException.class,
+                    () -> validator.validateInput(ch, "1")
+            );
             assertEquals("Invalid characters in file path", exception.getMessage());
         }
     }
@@ -69,7 +79,7 @@ class ValidatorTest {
 
         FileProcessingException exception = assertThrows(
                 FileProcessingException.class,
-                () -> Validator.validateInput(nonExistent.getAbsolutePath(), "1")
+                () -> validator.validateInput(nonExistent.getAbsolutePath(), "1")
         );
         assertEquals("File not found", exception.getMessage());
     }
@@ -87,7 +97,7 @@ class ValidatorTest {
 
         FileProcessingException exception = assertThrows(
                 FileProcessingException.class,
-                () -> Validator.validateInput(file.getAbsolutePath(), "1")
+                () -> validator.validateInput(file.getAbsolutePath(), "1")
         );
         assertEquals("File is not an Excel .xlsx file", exception.getMessage());
     }
@@ -100,7 +110,7 @@ class ValidatorTest {
 
         LinkProcessingException exception = assertThrows(
                 LinkProcessingException.class,
-                () -> Validator.validateInput(dir.getAbsolutePath(), "1")
+                () -> validator.validateInput(dir.getAbsolutePath(), "1")
         );
         assertEquals("Path is not a file", exception.getMessage());
     }
@@ -111,7 +121,7 @@ class ValidatorTest {
     void shouldThrowValueNProcessingExceptionOnNonIntegerN(String invalidN) {
         ValueNProcessingException exception = assertThrows(
                 ValueNProcessingException.class,
-                () -> Validator.validateInput(validFile.getAbsolutePath(), invalidN)
+                () -> validator.validateInput(validFile.getAbsolutePath(), invalidN)
         );
         assertEquals("N value is not a valid integer", exception.getMessage());
     }
@@ -122,7 +132,7 @@ class ValidatorTest {
     void shouldThrowValueNProcessingExceptionOnNBelowOne(int invalidN) {
         ValueNProcessingException exception = assertThrows(
                 ValueNProcessingException.class,
-                () -> Validator.validateInput(validFile.getAbsolutePath(), String.valueOf(invalidN))
+                () -> validator.validateInput(validFile.getAbsolutePath(), String.valueOf(invalidN))
         );
         assertEquals("N value must be positive, starting from 1", exception.getMessage());
     }
@@ -130,80 +140,87 @@ class ValidatorTest {
     @Test
     @DisplayName("Должен успешно валидировать корректные входные данные")
     void shouldValidateCorrectInput() {
-        // When
-        Validator.validateInput(validFile.getAbsolutePath(), "1");
-
-        // Then
-        assertDoesNotThrow(() -> {});
-        assertEquals(1, Validator.VALUE_N);
+        // When & Then
+        assertDoesNotThrow(() -> validator.validateInput(validFile.getAbsolutePath(), "1"));
     }
 
     @Test
     @DisplayName("Должен корректно парсить граничные значения N (1, 2, Integer.MAX_VALUE)")
     void shouldParseValidNValues() {
         // N = 1
-        Validator.validateInput(validFile.getAbsolutePath(), "1");
-        assertEquals(1, Validator.VALUE_N);
+        assertDoesNotThrow(() -> validator.validateInput(validFile.getAbsolutePath(), "1"));
 
         // N = 2
-        Validator.validateInput(validFile.getAbsolutePath(), "2");
-        assertEquals(2, Validator.VALUE_N);
+        assertDoesNotThrow(() -> validator.validateInput(validFile.getAbsolutePath(), "2"));
 
         // N = Integer.MAX_VALUE
-        Validator.validateInput(validFile.getAbsolutePath(), String.valueOf(Integer.MAX_VALUE));
-        assertEquals(Integer.MAX_VALUE, Validator.VALUE_N);
+        assertDoesNotThrow(() ->
+                validator.validateInput(validFile.getAbsolutePath(), String.valueOf(Integer.MAX_VALUE))
+        );
     }
 
     // === Тесты для validateNWithListSize(List<Long> numbers) ===
 
     @Test
-    @DisplayName("Должен выбрасывать ValueNProcessingException, если размер списка < VALUE_N")
+    @DisplayName("Должен выбрасывать ValueNProcessingException, если размер списка < N")
     void shouldThrowWhenListSizeLessThanN() {
         // Given
-        Validator.validateInput(validFile.getAbsolutePath(), "5"); // Устанавливаем VALUE_N = 5
+        String N = "5";
         List<Long> numbers = List.of(1L, 2L, 3L, 4L); // 4 элемента
 
         // When & Then
         ValueNProcessingException exception = assertThrows(
                 ValueNProcessingException.class,
-                () -> Validator.validateNWithListSize(numbers)
+                () -> {
+                    validator.validateInput(validFile.getAbsolutePath(), N);
+                    validator.validateNWithListSize(numbers, Integer.parseInt(N));
+                }
         );
         assertEquals("N exceeds the number of values in first column", exception.getMessage());
     }
 
     @Test
-    @DisplayName("Должен пройти, если размер списка == VALUE_N")
+    @DisplayName("Должен пройти, если размер списка == N")
     void shouldPassWhenListSizeEqualsN() {
         // Given
-        Validator.validateInput(validFile.getAbsolutePath(), "3");
+        String N = "3";
         List<Long> numbers = List.of(1L, 2L, 3L);
 
         // When & Then
-        assertDoesNotThrow(() -> Validator.validateNWithListSize(numbers));
+        assertDoesNotThrow(() -> {
+            validator.validateInput(validFile.getAbsolutePath(), N);
+            validator.validateNWithListSize(numbers,  Integer.parseInt(N));
+        });
     }
 
     @Test
-    @DisplayName("Должен пройти, если размер списка > VALUE_N")
+    @DisplayName("Должен пройти, если размер списка > N")
     void shouldPassWhenListSizeGreaterThanN() {
         // Given
-        Validator.validateInput(validFile.getAbsolutePath(), "2");
+        String N = "2";
         List<Long> numbers = List.of(1L, 2L, 3L, 4L);
 
         // When & Then
-        assertDoesNotThrow(() -> Validator.validateNWithListSize(numbers));
+        assertDoesNotThrow(() -> {
+            validator.validateInput(validFile.getAbsolutePath(), N);
+            validator.validateNWithListSize(numbers, Integer.parseInt(N));
+        });
     }
 
     @Test
     @DisplayName("Должен выбрасывать исключение, если список пустой, а N > 0")
     void shouldThrowWhenListEmptyAndNPositive() {
         // Given
-        Validator.validateInput(validFile.getAbsolutePath(), "1");
+        String N = "1";
         List<Long> empty = List.of();
 
         // When & Then
         ValueNProcessingException exception = assertThrows(
                 ValueNProcessingException.class,
-                () -> Validator.validateNWithListSize(empty)
+                () -> {
+                    validator.validateInput(validFile.getAbsolutePath(), N);
+                    validator.validateNWithListSize(empty, Integer.parseInt(N));
+                }
         );
         assertEquals("N exceeds the number of values in first column", exception.getMessage());
     }
@@ -212,9 +229,12 @@ class ValidatorTest {
     @DisplayName("Должен выбрасывать NPE, если список null")
     void shouldThrowNullPointerExceptionWhenListIsNull() {
         // Given
-        Validator.validateInput(validFile.getAbsolutePath(), "1");
+        String N = "1";
 
         // When & Then
-        assertThrows(NullPointerException.class, () -> Validator.validateNWithListSize(null));
+        assertThrows(NullPointerException.class, () -> {
+            validator.validateInput(validFile.getAbsolutePath(), N);
+            validator.validateNWithListSize(null,  Integer.parseInt(N));
+        });
     }
 }

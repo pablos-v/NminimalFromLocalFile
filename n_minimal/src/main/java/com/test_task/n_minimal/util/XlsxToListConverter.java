@@ -7,6 +7,7 @@ import org.apache.poi.openxml4j.exceptions.InvalidOperationException;
 import org.apache.poi.openxml4j.exceptions.NotOfficeXmlFileException;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -18,12 +19,13 @@ import java.util.List;
 /**
  * Класс конвернтации Excel файла в список чисел
  */
+@Component
 public class XlsxToListConverter {
 
     private static final String NO_SHEETS_IN_FILE = "Excel file contains no sheets";
     private static final String NO_NUMBERS_IN_FIRST_COLUMN = "No numbers found in first column";
 
-    public static List<Long> convert(String link) {
+    public List<Long> convert(String link) {
         List<Long> numbers = new ArrayList<>();
 
         try (Workbook workbook = new XSSFWorkbook(new File(link))) {
