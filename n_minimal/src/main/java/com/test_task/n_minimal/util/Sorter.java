@@ -6,6 +6,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Класс сортировки
+ */
 @Component
 public class Sorter {
 

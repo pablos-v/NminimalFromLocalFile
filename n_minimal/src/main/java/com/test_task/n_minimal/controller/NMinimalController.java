@@ -28,7 +28,7 @@ public class NMinimalController {
     /**
      * Отдаёт N число из локального файла, переданного в первом параметре.
      * Значения берутся из 1 столбца 1 листа, и сортируются по возрастанию.
-     * пример запроса: http://localhost:8080/api/find-nth-min?fileLink=path/to/file&N=5
+     * интерфейс Swagger доступен по адресу http://localhost:8080/swagger-ui/
      *
      * @param fileLink ссылка на локальный файл
      * @param N требуемое минимальное число
