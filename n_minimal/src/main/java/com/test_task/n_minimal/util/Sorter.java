@@ -2,7 +2,6 @@ package com.test_task.n_minimal.util;
 
 import org.springframework.stereotype.Component;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

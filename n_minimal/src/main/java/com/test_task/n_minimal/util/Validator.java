@@ -24,12 +24,12 @@ public class Validator {
 
     public void validateInput(String link, String N) {
         // 1. Проверка что link не null
-        if (link == null) {
+        if (link == null || link.isEmpty()) {
             throw new LinkNotFoundException("File link cannot be null");
         }
 
         // 2. Проверка что N не null
-        if (N == null) {
+        if (N == null || N.isEmpty()) {
             throw new ValueNNotFoundException("N value cannot be null");
         }
 
