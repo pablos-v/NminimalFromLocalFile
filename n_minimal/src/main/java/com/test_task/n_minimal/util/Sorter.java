@@ -13,7 +13,7 @@ import java.util.List;
 public class Sorter {
 
     public List<Long> sort(List<Long> unsorted) {
-        List<Long> list = new ArrayList<>(unsorted);
+        List<Long> list = removeDuplicates(unsorted);
         quickSort(list, 0, list.size() - 1);
 
         return list;
